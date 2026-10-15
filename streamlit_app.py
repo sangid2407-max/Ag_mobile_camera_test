@@ -66,7 +66,7 @@ def mean_rgb(
     x, y, w, h = roi
     crop = image_bgr[y : y + h, x : x + w]
     if crop.size == 0:
-        raise ValueError("ROI 为空")
+        raise ValueError("分析区域为空")
     b, g, r = cv2.mean(crop)[:3]
     return float(r), float(g), float(b)
 
@@ -152,19 +152,19 @@ def roi_display_image_b64(image_bgr: np.ndarray) -> str:
         [cv2.IMWRITE_JPEG_QUALITY, 92],
     )
     if not ok:
-        raise ValueError("ROI display image encoding failed")
+        raise ValueError("分析区域预览图像编码失败")
     return base64.b64encode(encoded).decode("ascii")
 
 
 ROI_VIEWER_HTML = """
 <div class="roi-toolbar">
   <button type="button" id="pan-mode">移动/缩放</button>
-  <button type="button" id="draw-mode">框选 ROI</button>
+  <button type="button" id="draw-mode">框选区域</button>
   <button type="button" id="reset-view">重置视图</button>
   <span id="zoom-level">1.00×</span>
 </div>
 <div class="roi-help">
-  手机：在移动/缩放模式下单指拖动、双指捏合 · 框选 ROI 模式下单指拖出矩形<br>
+  手机：在移动/缩放模式下单指拖动、双指捏合 · 框选区域 模式下单指拖出矩形<br>
   桌面：滚轮缩放 · 移动/缩放模式或 Shift + 左键拖动可平移
 </div>
 <canvas id="roi-canvas"></canvas>
@@ -506,17 +506,17 @@ export default function(component) {
 
 LOCKED_ROI_VIEWER_HTML = """
 <div class="roi-toolbar">
-  <button type="button" id="draw-mode">开始框选 ROI</button>
+  <button type="button" id="draw-mode">开始框选区域</button>
   <button type="button" id="pan-mode">移动/缩放</button>
   <button type="button" id="lock-mode">锁定/滚动</button>
   <button type="button" id="reset-view">重置视图</button>
   <span id="zoom-level">1.00×</span>
 </div>
-<div class="roi-status" id="roi-status">请点击“开始框选 ROI”</div>
+<div class="roi-status" id="roi-status">请点击“开始框选区域”</div>
 <div class="roi-help">
   框选时单指或鼠标拖出矩形，松手后自动保存并锁定；移动/缩放模式支持单指平移、双指缩放和鼠标滚轮缩放。
 </div>
-<canvas id="roi-canvas" aria-label="ROI selection image"></canvas>
+<canvas id="roi-canvas" aria-label="分析区域选择图像"></canvas>
 """
 
 
@@ -567,20 +567,20 @@ export default function(component) {
   let roi = data.initialRoi || null;
 
   function updateControls() {
-    drawButton.textContent = roi ? "重新框选 ROI" : "开始框选 ROI";
+    drawButton.textContent = roi ? "重新框选区域" : "开始框选区域";
     drawButton.classList.toggle("active", mode === "draw");
     panButton.classList.toggle("active", mode === "pan");
     lockButton.classList.toggle("active", mode === "locked");
     canvas.style.touchAction = mode === "locked" ? "auto" : "none";
     canvas.style.cursor = mode === "pan" ? "grab" : mode === "draw" ? "crosshair" : "default";
     if (roi && mode !== "draw") {
-      statusLabel.textContent = "ROI 已确认 ✓";
+      statusLabel.textContent = "分析区域已确认 ✓";
       statusLabel.classList.add("confirmed");
     } else if (mode === "draw") {
       statusLabel.textContent = "框选中：请拖出一个矩形";
       statusLabel.classList.remove("confirmed");
     } else {
-      statusLabel.textContent = "请点击“开始框选 ROI”";
+      statusLabel.textContent = "请点击“开始框选区域”";
       statusLabel.classList.remove("confirmed");
     }
   }
@@ -849,29 +849,29 @@ def roi_in_bounds(
 
 def _legacy_main() -> None:
     st.set_page_config(
-        page_title="Smartphone Fluorescence Image Quantification of Ag⁺",
+        page_title="智能手机荧光图像银离子定量分析",
         layout="wide",
     )
-    st.title("Smartphone Fluorescence Image Quantification of Ag⁺")
-    st.caption("Validated quantitative range: 2–12 μM")
+    st.title("智能手机荧光图像银离子定量分析")
+    st.caption("模型定量范围：2–12 μM")
 
-    st.subheader("Step 1 — Upload DNG images")
+    st.subheader("第 1 步：上传 DNG 图像")
     upload_left, upload_right = st.columns(2)
     with upload_left:
         left_file = st.file_uploader(
-            "Left image: Blank | Sample",
+            "第一张图：左侧空白 | 右侧样品",
             type=["dng"],
             key="left_file",
         )
     with upload_right:
         right_file = st.file_uploader(
-            "Right image: Sample | Blank",
+            "第二张图：左侧样品 | 右侧空白",
             type=["dng"],
             key="right_file",
         )
 
     if left_file is None or right_file is None:
-        st.info("Upload one left DNG and one right DNG to continue.")
+        st.info("请上传第一张和第二张 DNG 图像以继续。")
         return
 
     left_bytes = left_file.getvalue()
@@ -885,7 +885,7 @@ def _legacy_main() -> None:
         st.session_state.pop("prediction_rois", None)
 
     try:
-        with st.spinner("正在按固定 rawpy 参数读取 DNG…"):
+        with st.spinner("正在按固定参数读取 DNG 图像…"):
             img_left = read_dng_bytes(left_bytes)
             img_right = read_dng_bytes(right_bytes)
     except Exception as exc:
@@ -895,8 +895,8 @@ def _legacy_main() -> None:
     if img_left.shape != img_right.shape:
         st.error(
             "两张图像尺寸不同，无法应用相同坐标："
-            f"left={img_left.shape[1]}×{img_left.shape[0]}，"
-            f"right={img_right.shape[1]}×{img_right.shape[0]}"
+            f"第一张={img_left.shape[1]}×{img_left.shape[0]}，"
+            f"第二张={img_right.shape[1]}×{img_right.shape[0]}"
         )
         return
 
@@ -904,25 +904,25 @@ def _legacy_main() -> None:
     with preview_left:
         st.image(
             cv2.cvtColor(img_left, cv2.COLOR_BGR2RGB),
-            caption=f"left：左 blank / 右 sample（{left_file.name}）",
+            caption=f"第一张：左侧空白 / 右侧样品（{left_file.name}）",
             use_container_width=True,
         )
     with preview_right:
         st.image(
             cv2.cvtColor(img_right, cv2.COLOR_BGR2RGB),
-            caption=f"right：左 sample / 右 blank（{right_file.name}）",
+            caption=f"第二张：左侧样品 / 右侧空白（{right_file.name}）",
             use_container_width=True,
         )
 
-    st.subheader("Step 2 — Select ROIs")
+    st.subheader("第 2 步：选择分析区域")
     st.write(
-        "仅在 left 图上依次选择两个普通矩形框。拖动矩形内部可移动，"
-        "拖动角点可调整大小；确认后的原图坐标会直接应用到 right DNG。"
+        "仅在 第一张图上依次选择两个普通矩形框。拖动矩形内部可移动，"
+        "拖动角点可调整大小；确认后的原图坐标会直接应用到 第二张 DNG 图像。"
     )
     image_height, image_width = img_left.shape[:2]
     display_image_b64 = roi_display_image_b64(img_left)
 
-    st.markdown("#### 第 1 步：左侧液体中央 ROI_LEFT")
+    st.markdown("#### 第 1 步：左侧液体中央 左侧分析区域")
     left_component_key = f"zoom_roi_left_{fingerprint}"
     left_component_state = st.session_state.get(left_component_key)
     left_initial_roi = (
@@ -949,8 +949,8 @@ def _legacy_main() -> None:
         if left_result.roi is not None
         else None
     )
-    st.code(f"当前 ROI_LEFT = {current_left}")
-    if st.button("确认 ROI_LEFT", type="primary", disabled=current_left is None):
+    st.code(f"当前 左侧分析区域 = {current_left}")
+    if st.button("确认 左侧分析区域", type="primary", disabled=current_left is None):
         st.session_state.roi_left = current_left
         st.session_state.pop("roi_right", None)
         st.session_state.pop("prediction_result", None)
@@ -958,11 +958,11 @@ def _legacy_main() -> None:
 
     roi_left = st.session_state.get("roi_left")
     if roi_left is None:
-        st.info("请调整左侧矩形框，然后点击“确认 ROI_LEFT”。")
+        st.info("请调整左侧矩形框，然后点击“确认 左侧分析区域”。")
         return
-    st.success(f"已确认 ROI_LEFT = {roi_left}")
+    st.success(f"已确认 左侧分析区域 = {roi_left}")
 
-    st.markdown("#### 第 2 步：右侧液体中央 ROI_RIGHT")
+    st.markdown("#### 第 2 步：右侧液体中央 右侧分析区域")
     right_component_key = f"zoom_roi_right_{fingerprint}"
     right_component_state = st.session_state.get(right_component_key)
     right_initial_roi = (
@@ -989,27 +989,27 @@ def _legacy_main() -> None:
         if right_result.roi is not None
         else None
     )
-    st.code(f"当前 ROI_RIGHT = {current_right}")
-    if st.button("确认 ROI_RIGHT", type="primary", disabled=current_right is None):
+    st.code(f"当前 右侧分析区域 = {current_right}")
+    if st.button("确认 右侧分析区域", type="primary", disabled=current_right is None):
         st.session_state.roi_right = current_right
         st.session_state.pop("prediction_result", None)
         st.session_state.pop("prediction_rois", None)
 
     roi_right = st.session_state.get("roi_right")
     if roi_right is None:
-        st.info("请调整右侧矩形框，然后点击“确认 ROI_RIGHT”。")
+        st.info("请调整右侧矩形框，然后点击“确认 右侧分析区域”。")
         return
-    st.success(f"已确认 ROI_RIGHT = {roi_right}")
+    st.success(f"已确认 右侧分析区域 = {roi_right}")
     if not roi_in_bounds(roi_left, img_left.shape) or not roi_in_bounds(roi_right, img_left.shape):
-        st.error("ROI 超出图像边界，请重新框选。")
+        st.error("分析区域超出图像边界，请重新框选。")
         return
 
-    st.markdown("#### ROI 确认预览")
+    st.markdown("#### 分析区域确认预览")
     st.image(
         roi_preview(img_left, roi_left, roi_right),
         caption=(
-            f"left DNG：青色 ROI_LEFT={roi_left}；黄色 ROI_RIGHT={roi_right}。"
-            "同一组坐标将应用到 right DNG。"
+            f"第一张 DNG 图像：青色 左侧分析区域={roi_left}；黄色 右侧分析区域={roi_right}。"
+            "同一组坐标将应用到 第二张 DNG 图像。"
         ),
         use_container_width=True,
     )
@@ -1018,20 +1018,20 @@ def _legacy_main() -> None:
         x, y, w, h = roi_left
         st.image(
             cv2.cvtColor(img_left[y : y + h, x : x + w], cv2.COLOR_BGR2RGB),
-            caption=f"ROI_LEFT 预览：{roi_left}",
+            caption=f"左侧分析区域 预览：{roi_left}",
             use_container_width=True,
         )
     with crop_right:
         x, y, w, h = roi_right
         st.image(
             cv2.cvtColor(img_left[y : y + h, x : x + w], cv2.COLOR_BGR2RGB),
-            caption=f"ROI_RIGHT 预览：{roi_right}",
+            caption=f"右侧分析区域 预览：{roi_right}",
             use_container_width=True,
         )
 
-    st.subheader("Step 3 — Predict Ag⁺ concentration")
+    st.subheader("第 3 步：预测银离子浓度")
     if st.button(
-        "Predict Ag⁺ concentration",
+        "预测银离子浓度",
         type="primary",
         use_container_width=True,
     ):
@@ -1045,56 +1045,56 @@ def _legacy_main() -> None:
 
     result = st.session_state.get("prediction_result")
     if result is None:
-        st.info("Confirm both ROIs, then click “Predict Ag⁺ concentration”.")
+        st.info("请确认两个分析区域，然后点击“预测银离子浓度”。")
         return
 
     result_roi_left, result_roi_right = st.session_state["prediction_rois"]
     roi_left, roi_right = result_roi_left, result_roi_right
     st.metric(
-        "Predicted Ag⁺ concentration",
+        "银离子预测浓度",
         f"{result['predicted_Ag_uM']:.2f} μM",
     )
     if result["range_status"] == "IN_RANGE":
-        st.success("Within validated range (2–12 μM)")
+        st.success("处于模型定量范围内（2–12 μM）")
     elif result["range_status"] == "OUT_OF_MODEL_RANGE":
-        st.warning("Outside validated quantitative range")
+        st.warning("超出模型定量范围")
     else:
-        st.error("Invalid Y ratio; concentration could not be predicted.")
+        st.error("亮度比值无效，无法预测浓度。")
 
-    with st.expander("Technical details", expanded=False):
+    with st.expander("计算详情", expanded=False):
         st.write(
-            f"Model: C = {MODEL_A} × Y_ratio_corr + {MODEL_B}  "
-            f"(validated range: {VALID_MIN:g}–{VALID_MAX:g} μM)"
+            f"模型：浓度 = {MODEL_A} × 校正亮度比值 + {MODEL_B}  "
+            f"（模型定量范围： {VALID_MIN:g}–{VALID_MAX:g} μM）"
         )
         st.caption(
-            "DNG processing: use_camera_wb=True, "
-            "no_auto_bright=True, output_bps=8"
+            "DNG 处理：使用相机白平衡，"
+            "关闭自动亮度，输出位深为 8 位"
         )
         ratio_rows = [
-            {"Metric": "Y_ratio_left", "Value": result["Y_ratio_left"]},
-            {"Metric": "Y_ratio_right", "Value": result["Y_ratio_right"]},
-            {"Metric": "Y_ratio_corr", "Value": result["Y_ratio_corr"]},
+            {"指标": "第一张图亮度比值", "数值": result["Y_ratio_left"]},
+            {"指标": "第二张图亮度比值", "数值": result["Y_ratio_right"]},
+            {"指标": "校正亮度比值", "数值": result["Y_ratio_corr"]},
             {
-                "Metric": "Position-swap difference (%)",
-                "Value": result["position_swap_difference_percent"],
+                "指标": "左右互换差异（%）",
+                "数值": result["position_swap_difference_percent"],
             },
         ]
         st.dataframe(ratio_rows, use_container_width=True, hide_index=True)
 
         detail_rows = []
         for prefix, label in [
-            ("left_blank", "Left image / blank / ROI_LEFT"),
-            ("left_sample", "Left image / sample / ROI_RIGHT"),
-            ("right_sample", "Right image / sample / ROI_LEFT"),
-            ("right_blank", "Right image / blank / ROI_RIGHT"),
+            ("left_blank", "第一张图 / 空白 / 左侧分析区域"),
+            ("left_sample", "第一张图 / 样品 / 右侧分析区域"),
+            ("right_sample", "第二张图 / 样品 / 左侧分析区域"),
+            ("right_blank", "第二张图 / 空白 / 右侧分析区域"),
         ]:
             detail_rows.append(
                 {
-                    "Region": label,
-                    "R": result[f"{prefix}_R"],
-                    "G": result[f"{prefix}_G"],
-                    "B": result[f"{prefix}_B"],
-                    "Y": result[f"{prefix}_Y"],
+                    "区域": label,
+                    "红色通道": result[f"{prefix}_R"],
+                    "绿色通道": result[f"{prefix}_G"],
+                    "蓝色通道": result[f"{prefix}_B"],
+                    "亮度": result[f"{prefix}_Y"],
                 }
             )
         st.dataframe(detail_rows, use_container_width=True, hide_index=True)
@@ -1103,31 +1103,32 @@ def _legacy_main() -> None:
         "left_file": left_file.name,
         "right_file": right_file.name,
         **result,
-        "ROI_LEFT_x": roi_left[0],
-        "ROI_LEFT_y": roi_left[1],
-        "ROI_LEFT_w": roi_left[2],
-        "ROI_LEFT_h": roi_left[3],
-        "ROI_RIGHT_x": roi_right[0],
-        "ROI_RIGHT_y": roi_right[1],
-        "ROI_RIGHT_w": roi_right[2],
-        "ROI_RIGHT_h": roi_right[3],
+        "左侧分析区域_x": roi_left[0],
+        "左侧分析区域_y": roi_left[1],
+        "左侧分析区域_w": roi_left[2],
+        "左侧分析区域_h": roi_left[3],
+        "右侧分析区域_x": roi_right[0],
+        "右侧分析区域_y": roi_right[1],
+        "右侧分析区域_w": roi_right[2],
+        "右侧分析区域_h": roi_right[3],
         "model_A": MODEL_A,
         "model_B": MODEL_B,
         "model_valid_min_uM": VALID_MIN,
         "model_valid_max_uM": VALID_MAX,
     }
+    csv_row = chinese_export_row(csv_row)
     csv_buffer = io.StringIO()
     writer = csv.DictWriter(csv_buffer, fieldnames=list(csv_row))
     writer.writeheader()
     writer.writerow(csv_row)
     st.download_button(
-        "下载结果 CSV",
+        "下载结果表格（CSV）",
         data=csv_buffer.getvalue().encode("utf-8-sig"),
-        file_name="Ag_ROI_prediction.csv",
+        file_name="银离子预测结果.csv",
         mime="text/csv",
     )
 
-    if st.button("New prediction", use_container_width=True):
+    if st.button("开始新的预测", use_container_width=True):
         prediction_state_keys = {
             "left_file",
             "right_file",
@@ -1143,61 +1144,79 @@ def _legacy_main() -> None:
         st.rerun()
 
 
+def chinese_export_row(row: dict[str, Any]) -> dict[str, Any]:
+    """将下载表格的字段和状态转换为中文。"""
+    labels = {
+        "mode": "输入方式", "left_file": "第一张图文件名", "right_file": "第二张图文件名",
+        "predicted_Ag_uM": "银离子预测浓度（微摩尔每升）", "range_status": "定量范围状态",
+        "Y_ratio_left": "第一张图亮度比值", "Y_ratio_right": "第二张图亮度比值",
+        "Y_ratio_corr": "校正亮度比值", "position_swap_difference_percent": "左右互换差异（%）",
+        "model_A": "模型斜率", "model_B": "模型截距",
+        "model_valid_min_uM": "模型定量下限（微摩尔每升）", "model_valid_max_uM": "模型定量上限（微摩尔每升）",
+    }
+    for prefix, region in [("left_blank", "第一张图空白"), ("left_sample", "第一张图样品"),
+                           ("right_sample", "第二张图样品"), ("right_blank", "第二张图空白")]:
+        for channel, name in [("R", "红色通道"), ("G", "绿色通道"), ("B", "蓝色通道"), ("Y", "亮度")]:
+            labels[f"{prefix}_{channel}"] = region + name
+    for region in ("左侧分析区域", "右侧分析区域"):
+        for axis, name in [("x", "横坐标"), ("y", "纵坐标"), ("w", "宽度"), ("h", "高度")]:
+            labels[f"{region}_{axis}"] = region + name
+    states = {"IN_RANGE": "处于模型定量范围内", "OUT_OF_MODEL_RANGE": "超出模型定量范围", "INVALID_RATIO": "亮度比值无效"}
+    return {labels.get(key, key): states.get(value, value) if isinstance(value, str) else value
+            for key, value in row.items()}
+
+
 def main() -> None:
     st.set_page_config(
-        page_title="Smartphone Fluorescence Image Quantification of Ag⁺",
+        page_title="智能手机荧光图像银离子定量分析",
         layout="wide",
     )
-    st.title("Smartphone Fluorescence Image Quantification of Ag⁺")
-    st.caption("Validated quantitative range: 2–12 μM")
+    st.title("智能手机荧光图像银离子定量分析")
+    st.caption("模型定量范围：2–12 μM")
 
     mode = st.radio(
-        "Mode",
-        ["Upload DNG", "Mobile Camera Test"],
+        "输入方式",
+        ["上传 DNG 图像", "手机拍照"],
         horizontal=True,
         key="input_mode",
     )
 
-    st.subheader("Step 1 — Capture or upload two images")
-    if mode == "Upload DNG":
+    st.subheader("第 1 步：拍摄或上传两张图像")
+    if mode == "上传 DNG 图像":
         upload_left, upload_right = st.columns(2)
         with upload_left:
             left_file = st.file_uploader(
-                "First image: Blank | Sample",
+                "第一张图：左侧空白 | 右侧样品",
                 type=["dng"],
                 key="left_file",
             )
         with upload_right:
             right_file = st.file_uploader(
-                "Second image: Sample | Blank",
+                "第二张图：左侧样品 | 右侧空白",
                 type=["dng"],
                 key="right_file",
             )
         if left_file is None or right_file is None:
-            st.info("Upload both DNG images to continue.")
+            st.info("请上传两张 DNG 图像以继续。")
             return
         decoder = read_dng_bytes
-        decode_label = "正在按固定 rawpy 参数读取 DNG…"
+        decode_label = "正在按固定参数读取 DNG 图像…"
         left_name = left_file.name
         right_name = right_file.name
     else:
-        st.warning(
-            "Mobile Camera Test：该模式尚未完成与DNG模型的一致性验证，"
-            "预测结果仅用于功能测试。"
-        )
         left_file = st.camera_input(
-            "拍摄第一张图：Blank | Sample",
+            "拍摄第一张图：左侧空白 | 右侧样品",
             key="camera_left_file",
         )
         if left_file is None:
-            st.info("请先用手机相机拍摄第一张图：Blank | Sample。")
+            st.info("请先用手机相机拍摄第一张图：左侧空白 | 右侧样品。")
             return
         right_file = st.camera_input(
-            "拍摄第二张图：Sample | Blank",
+            "拍摄第二张图：左侧样品 | 右侧空白",
             key="camera_right_file",
         )
         if right_file is None:
-            st.info("第一张图已完成，请继续拍摄第二张图：Sample | Blank。")
+            st.info("第一张图已完成，请继续拍摄第二张图：左侧样品 | 右侧空白。")
             return
         decoder = read_camera_image_bytes
         decode_label = "正在读取浏览器相机图片…"
@@ -1225,8 +1244,8 @@ def main() -> None:
     if img_left.shape != img_right.shape:
         st.error(
             "两张图片尺寸不同，无法应用相同原图坐标："
-            f"first={img_left.shape[1]}×{img_left.shape[0]}，"
-            f"second={img_right.shape[1]}×{img_right.shape[0]}"
+            f"第一张={img_left.shape[1]}×{img_left.shape[0]}，"
+            f"第二张={img_right.shape[1]}×{img_right.shape[0]}"
         )
         return
 
@@ -1234,25 +1253,25 @@ def main() -> None:
     with preview_left:
         st.image(
             cv2.cvtColor(img_left, cv2.COLOR_BGR2RGB),
-            caption=f"第一张：Blank | Sample（{left_name}）",
+            caption=f"第一张：左侧空白 | 右侧样品（{left_name}）",
             use_container_width=True,
         )
     with preview_right:
         st.image(
             cv2.cvtColor(img_right, cv2.COLOR_BGR2RGB),
-            caption=f"第二张：Sample | Blank（{right_name}）",
+            caption=f"第二张：左侧样品 | 右侧空白（{right_name}）",
             use_container_width=True,
         )
 
-    st.subheader("Step 2 — Select ROIs on the first image")
+    st.subheader("第 2 步：在第一张图像上选择分析区域")
     st.write(
-        "ROI_LEFT 和 ROI_RIGHT 都只在第一张图上选择；保存的是原始图像像素坐标，"
+        "左侧分析区域 和 右侧分析区域 都只在第一张图上选择；保存的是原始图像像素坐标，"
         "并将同一组坐标应用到第二张图。缩放和平移只影响显示。"
     )
     image_height, image_width = img_left.shape[:2]
     display_image_b64 = roi_display_image_b64(img_left)
 
-    st.markdown("#### 1. ROI_LEFT（第一张图左侧 Blank 区域）")
+    st.markdown("#### 1. 左侧分析区域（第一张图左侧空白区域）")
     left_component_key = f"locked_zoom_roi_left_{fingerprint}"
     left_result = roi_viewer_component(
         data={
@@ -1277,11 +1296,11 @@ def main() -> None:
             st.session_state.pop("prediction_rois", None)
     roi_left = st.session_state.get("roi_left")
     if roi_left is None:
-        st.info("点击“开始框选 ROI”，拖出矩形；松手后会自动确认并锁定。")
+        st.info("点击“开始框选区域”，拖出矩形；松手后会自动确认并锁定。")
         return
-    st.success(f"ROI 已确认 ✓  ROI_LEFT = {roi_left}")
+    st.success(f"分析区域已确认 ✓  左侧分析区域 = {roi_left}")
 
-    st.markdown("#### 2. ROI_RIGHT（第一张图右侧 Sample 区域）")
+    st.markdown("#### 2. 右侧分析区域（第一张图右侧样品区域）")
     right_component_key = f"locked_zoom_roi_right_{fingerprint}"
     right_result = roi_viewer_component(
         data={
@@ -1306,19 +1325,19 @@ def main() -> None:
             st.session_state.pop("prediction_rois", None)
     roi_right = st.session_state.get("roi_right")
     if roi_right is None:
-        st.info("点击“开始框选 ROI”，拖出矩形；松手后会自动确认并锁定。")
+        st.info("点击“开始框选区域”，拖出矩形；松手后会自动确认并锁定。")
         return
-    st.success(f"ROI 已确认 ✓  ROI_RIGHT = {roi_right}")
+    st.success(f"分析区域已确认 ✓  右侧分析区域 = {roi_right}")
 
     if not roi_in_bounds(roi_left, img_left.shape) or not roi_in_bounds(roi_right, img_left.shape):
-        st.error("ROI 超出图像边界，请点击“重新框选 ROI”。")
+        st.error("分析区域超出图像边界，请点击“重新框选区域”。")
         return
 
-    st.markdown("#### ROI confirmation preview")
+    st.markdown("#### 分析区域确认预览")
     st.image(
         roi_preview(img_left, roi_left, roi_right),
         caption=(
-            f"第一张图：青色 ROI_LEFT={roi_left}；黄色 ROI_RIGHT={roi_right}。"
+            f"第一张图：青色 左侧分析区域={roi_left}；黄色 右侧分析区域={roi_right}。"
             "相同原图坐标将应用到第二张图。"
         ),
         use_container_width=True,
@@ -1328,24 +1347,19 @@ def main() -> None:
         x, y, w, h = roi_left
         st.image(
             cv2.cvtColor(img_left[y:y + h, x:x + w], cv2.COLOR_BGR2RGB),
-            caption=f"ROI_LEFT preview: {roi_left}",
+            caption=f"左侧分析区域预览： {roi_left}",
             use_container_width=True,
         )
     with crop_right:
         x, y, w, h = roi_right
         st.image(
             cv2.cvtColor(img_left[y:y + h, x:x + w], cv2.COLOR_BGR2RGB),
-            caption=f"ROI_RIGHT preview: {roi_right}",
+            caption=f"右侧分析区域预览： {roi_right}",
             use_container_width=True,
         )
 
-    st.subheader("Step 3 — Predict Ag⁺ concentration")
-    if mode == "Mobile Camera Test":
-        st.warning(
-            "Mobile Camera Test：该模式尚未完成与DNG模型的一致性验证，"
-            "预测结果仅用于功能测试。"
-        )
-    if st.button("Predict Ag⁺ concentration", type="primary", use_container_width=True):
+    st.subheader("第 3 步：预测银离子浓度")
+    if st.button("预测银离子浓度", type="primary", use_container_width=True):
         st.session_state.prediction_result = predict_pair(
             img_left,
             img_right,
@@ -1356,56 +1370,56 @@ def main() -> None:
 
     result = st.session_state.get("prediction_result")
     if result is None:
-        st.info("Both ROIs are locked. Click Predict Ag⁺ concentration to continue.")
+        st.info("两个分析区域已锁定，请点击“预测银离子浓度”继续。")
         return
 
     result_roi_left, result_roi_right = st.session_state["prediction_rois"]
     roi_left, roi_right = result_roi_left, result_roi_right
-    st.metric("Predicted Ag⁺ concentration", f"{result['predicted_Ag_uM']:.2f} μM")
+    st.metric("银离子预测浓度", f"{result['predicted_Ag_uM']:.2f} μM")
     if result["range_status"] == "IN_RANGE":
-        st.success("Within validated range (2–12 μM)")
+        st.success("处于模型定量范围内（2–12 μM）")
     elif result["range_status"] == "OUT_OF_MODEL_RANGE":
-        st.warning("Outside validated quantitative range")
+        st.warning("超出模型定量范围")
     else:
-        st.error("Invalid Y ratio; concentration could not be predicted.")
+        st.error("亮度比值无效，无法预测浓度。")
 
-    with st.expander("Technical details", expanded=False):
+    with st.expander("计算详情", expanded=False):
         st.write(
-            f"Model: C = {MODEL_A} × Y_ratio_corr + {MODEL_B} "
-            f"(validated range: {VALID_MIN:g}–{VALID_MAX:g} μM)"
+            f"模型：浓度 = {MODEL_A} × 校正亮度比值 + {MODEL_B} "
+            f"（模型定量范围： {VALID_MIN:g}–{VALID_MAX:g} μM）"
         )
-        if mode == "Upload DNG":
+        if mode == "上传 DNG 图像":
             st.caption(
-                "DNG processing: use_camera_wb=True, "
-                "no_auto_bright=True, output_bps=8"
+                "DNG 处理：使用相机白平衡，"
+                "关闭自动亮度，输出位深为 8 位"
             )
         else:
-            st.caption("Camera processing: browser JPEG/PNG decoded to BGR; no DNG/rawpy step.")
+            st.caption("拍照图像处理：解码浏览器照片并读取颜色通道。")
         ratio_rows = [
-            {"Metric": "Y_ratio_left", "Value": result["Y_ratio_left"]},
-            {"Metric": "Y_ratio_right", "Value": result["Y_ratio_right"]},
-            {"Metric": "Y_ratio_corr", "Value": result["Y_ratio_corr"]},
+            {"指标": "第一张图亮度比值", "数值": result["Y_ratio_left"]},
+            {"指标": "第二张图亮度比值", "数值": result["Y_ratio_right"]},
+            {"指标": "校正亮度比值", "数值": result["Y_ratio_corr"]},
             {
-                "Metric": "Position-swap difference (%)",
-                "Value": result["position_swap_difference_percent"],
+                "指标": "左右互换差异（%）",
+                "数值": result["position_swap_difference_percent"],
             },
         ]
         st.dataframe(ratio_rows, use_container_width=True, hide_index=True)
 
         detail_rows = []
         for prefix, label in [
-            ("left_blank", "First image / blank / ROI_LEFT"),
-            ("left_sample", "First image / sample / ROI_RIGHT"),
-            ("right_sample", "Second image / sample / ROI_LEFT"),
-            ("right_blank", "Second image / blank / ROI_RIGHT"),
+            ("left_blank", "第一张图 / 空白 / 左侧分析区域"),
+            ("left_sample", "第一张图 / 样品 / 右侧分析区域"),
+            ("right_sample", "第二张图 / 样品 / 左侧分析区域"),
+            ("right_blank", "第二张图 / 空白 / 右侧分析区域"),
         ]:
             detail_rows.append(
                 {
-                    "Region": label,
-                    "R": result[f"{prefix}_R"],
-                    "G": result[f"{prefix}_G"],
-                    "B": result[f"{prefix}_B"],
-                    "Y": result[f"{prefix}_Y"],
+                    "区域": label,
+                    "红色通道": result[f"{prefix}_R"],
+                    "绿色通道": result[f"{prefix}_G"],
+                    "蓝色通道": result[f"{prefix}_B"],
+                    "亮度": result[f"{prefix}_Y"],
                 }
             )
         st.dataframe(detail_rows, use_container_width=True, hide_index=True)
@@ -1415,31 +1429,32 @@ def main() -> None:
         "left_file": left_name,
         "right_file": right_name,
         **result,
-        "ROI_LEFT_x": roi_left[0],
-        "ROI_LEFT_y": roi_left[1],
-        "ROI_LEFT_w": roi_left[2],
-        "ROI_LEFT_h": roi_left[3],
-        "ROI_RIGHT_x": roi_right[0],
-        "ROI_RIGHT_y": roi_right[1],
-        "ROI_RIGHT_w": roi_right[2],
-        "ROI_RIGHT_h": roi_right[3],
+        "左侧分析区域_x": roi_left[0],
+        "左侧分析区域_y": roi_left[1],
+        "左侧分析区域_w": roi_left[2],
+        "左侧分析区域_h": roi_left[3],
+        "右侧分析区域_x": roi_right[0],
+        "右侧分析区域_y": roi_right[1],
+        "右侧分析区域_w": roi_right[2],
+        "右侧分析区域_h": roi_right[3],
         "model_A": MODEL_A,
         "model_B": MODEL_B,
         "model_valid_min_uM": VALID_MIN,
         "model_valid_max_uM": VALID_MAX,
     }
+    csv_row = chinese_export_row(csv_row)
     csv_buffer = io.StringIO()
     writer = csv.DictWriter(csv_buffer, fieldnames=list(csv_row))
     writer.writeheader()
     writer.writerow(csv_row)
     st.download_button(
-        "下载结果 CSV",
+        "下载结果表格（CSV）",
         data=csv_buffer.getvalue().encode("utf-8-sig"),
-        file_name="Ag_ROI_prediction.csv",
+        file_name="银离子预测结果.csv",
         mime="text/csv",
     )
 
-    if st.button("New prediction", use_container_width=True):
+    if st.button("开始新的预测", use_container_width=True):
         prediction_state_keys = {
             "left_file",
             "right_file",
