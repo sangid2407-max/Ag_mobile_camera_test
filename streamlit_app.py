@@ -25,6 +25,7 @@ MODEL_B = 21.280790
 VALID_MIN = 2.0
 VALID_MAX = 12.0
 EPS = 1e-6
+MAX_DNG_UPLOAD_MB = 1024
 
 
 @st.cache_data(show_spinner=False)
@@ -861,12 +862,14 @@ def _legacy_main() -> None:
         left_file = st.file_uploader(
             "第一张图：左侧空白 | 右侧样品",
             type=["dng"],
+            max_upload_size=MAX_DNG_UPLOAD_MB,
             key="left_file",
         )
     with upload_right:
         right_file = st.file_uploader(
             "第二张图：左侧样品 | 右侧空白",
             type=["dng"],
+            max_upload_size=MAX_DNG_UPLOAD_MB,
             key="right_file",
         )
 
@@ -1188,12 +1191,14 @@ def main() -> None:
             left_file = st.file_uploader(
                 "第一张图：左侧空白 | 右侧样品",
                 type=["dng"],
+                max_upload_size=MAX_DNG_UPLOAD_MB,
                 key="left_file",
             )
         with upload_right:
             right_file = st.file_uploader(
                 "第二张图：左侧样品 | 右侧空白",
                 type=["dng"],
+                max_upload_size=MAX_DNG_UPLOAD_MB,
                 key="right_file",
             )
         if left_file is None or right_file is None:
