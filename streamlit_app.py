@@ -12,6 +12,7 @@ import csv
 import io
 import os
 import tempfile
+from pathlib import Path
 from typing import Any
 
 import cv2
@@ -850,13 +851,13 @@ def roi_in_bounds(
 
 def _legacy_main() -> None:
     st.set_page_config(
-        page_title="智能手机荧光图像银离子定量分析",
+        page_title="智能手机荧光图像疾病标记物定量分析",
         layout="wide",
     )
-    st.title("智能手机荧光图像银离子定量分析")
+    st.title("智能手机荧光图像疾病标记物定量分析")
     st.caption("模型定量范围：2–12 μM")
 
-    st.subheader("第 1 步：上传 DNG 图像")
+    st.subheader("第 1 步：上传 DNG 原始图像")
     upload_left, upload_right = st.columns(2)
     with upload_left:
         left_file = st.file_uploader(
@@ -1032,9 +1033,9 @@ def _legacy_main() -> None:
             use_container_width=True,
         )
 
-    st.subheader("第 3 步：预测银离子浓度")
+    st.subheader("第 3 步：预测疾病标记物浓度")
     if st.button(
-        "预测银离子浓度",
+        "预测疾病标记物浓度",
         type="primary",
         use_container_width=True,
     ):
@@ -1048,13 +1049,13 @@ def _legacy_main() -> None:
 
     result = st.session_state.get("prediction_result")
     if result is None:
-        st.info("请确认两个分析区域，然后点击“预测银离子浓度”。")
+        st.info("请确认两个分析区域，然后点击“预测疾病标记物浓度”。")
         return
 
     result_roi_left, result_roi_right = st.session_state["prediction_rois"]
     roi_left, roi_right = result_roi_left, result_roi_right
     st.metric(
-        "银离子预测浓度",
+        "疾病标记物预测浓度",
         f"{result['predicted_Ag_uM']:.2f} μM",
     )
     if result["range_status"] == "IN_RANGE":
@@ -1127,7 +1128,7 @@ def _legacy_main() -> None:
     st.download_button(
         "下载结果表格（CSV）",
         data=csv_buffer.getvalue().encode("utf-8-sig"),
-        file_name="银离子预测结果.csv",
+        file_name="疾病标记物预测结果.csv",
         mime="text/csv",
     )
 
@@ -1151,7 +1152,7 @@ def chinese_export_row(row: dict[str, Any]) -> dict[str, Any]:
     """将下载表格的字段和状态转换为中文。"""
     labels = {
         "mode": "输入方式", "left_file": "第一张图文件名", "right_file": "第二张图文件名",
-        "predicted_Ag_uM": "银离子预测浓度（微摩尔每升）", "range_status": "定量范围状态",
+        "predicted_Ag_uM": "疾病标记物预测浓度（微摩尔每升）", "range_status": "定量范围状态",
         "Y_ratio_left": "第一张图亮度比值", "Y_ratio_right": "第二张图亮度比值",
         "Y_ratio_corr": "校正亮度比值", "position_swap_difference_percent": "左右互换差异（%）",
         "model_A": "模型斜率", "model_B": "模型截距",
@@ -1169,23 +1170,101 @@ def chinese_export_row(row: dict[str, Any]) -> dict[str, Any]:
             for key, value in row.items()}
 
 
-def main() -> None:
-    st.set_page_config(
-        page_title="智能手机荧光图像银离子定量分析",
-        layout="wide",
-    )
-    st.title("智能手机荧光图像银离子定量分析")
-    st.caption("模型定量范围：2–12 μM")
+def show_guide_image(name: str, caption: str) -> None:
+    image_path = Path(__file__).resolve().parent / "guide_images" / name
+    if image_path.is_file():
+        st.image(str(image_path), caption=caption, width=300)
+    else:
+        st.info("教程截图暂未加载，请将 guide_images 文件夹上传到网页代码所在目录。")
 
+
+def render_usage_guide() -> None:
+    st.subheader("使用说明")
+    st.write("准备两张左右互换的图像，在第一张图上框选两个分析区域，然后预测疾病标记物浓度并保存结果。")
+    st.caption("下面使用一次真实的手机端操作截图说明流程。截图中的 5.62 μM 是该次预测示例，不是你的样品预设结果。")
+    st.markdown("### 操作前准备")
+    st.markdown("""
+- 准备空白和样品，按建模时的条件拍摄，保持手机、光源和容器位置稳定。
+- 第一张图：**左侧空白、右侧样品**。交换两者后拍第二张：**左侧样品、右侧空白**。
+- 两张图像的尺寸和构图应一致，保证同一组分析坐标落在两张图的对应液体内部。
+- 使用 DNG 模式时，选择真正的 DNG 原文件。普通照片改成 `.dng` 后缀不能转换格式。
+""")
+    with st.expander("两种输入方式有什么区别？"):
+        st.markdown("**上传 DNG 原始图像**：沿用固定的 DNG 解码参数和浓度模型。手机弹出的‘拍照’选项不保证返回 DNG 文件。")
+        st.markdown("**网页直接拍照**：读取浏览器返回的普通照片，方便演示图像采集与选区流程。其与 DNG 模型的一致性尚未完成验证。")
+    steps = [
+        ("1. 上传两张图像", "01_upload.jpg", "两张 DNG 原文件已上传",
+         "切换到‘开始检测’，选择‘上传 DNG 原始图像’，分别上传两张对应文件。", 
+         "完成标志：两个上传框都显示文件名，图像解码后可以进入区域选择。每张文件上限为 1024 MB，实际处理能力仍受云端资源限制。"),
+        ("2. 选择左侧空白区域", "02_blank.jpg", "青色框：第一张图左侧空白区域",
+         "点击‘移动/缩放’，用双指放大并移动到液体附近。点击‘开始框选区域’，在左侧液体中央拖出矩形，松手保存。",
+         "完成标志：出现绿色‘分析区域已确认’。避开液面、容器边缘和底部反光；需要修改时点击‘重新框选区域’。"),
+        ("3. 选择右侧样品区域", "03_sample.jpg", "黄色框：第一张图右侧样品区域",
+         "在右侧分析工具中以同样方法框选样品液体中央。两个区域都在第一张图上选择。",
+         "完成标志：右侧区域也显示已确认。随后核对两张图的带框预览，确保青色和黄色框都位于液体内部；第二张图的空白与样品位置已交换。"),
+        ("4. 预测疾病标记物浓度", "04_result.jpg", "预测浓度及模型范围状态示例",
+         "点击‘预测疾病标记物浓度’，查看结果、单位和模型范围状态。",
+         "模型定量范围为 2–12 μM。处于范围内表示预测值落在该区间，不等同于准确度验证；超出范围时网页仍保留预测值并提示。"),
+        ("5. 查看详情并保存", "05_details.jpg", "亮度比值、校正结果和颜色通道数据",
+         "展开‘计算详情’查看亮度比值、校正亮度比值及颜色通道数据。点击‘下载结果表格（CSV）’保存本次记录。",
+         "完成标志：浏览器下载结果文件。建议同时保存原始 DNG、样品编号和已知浓度，方便复核。开始新的预测会清除当前检测状态。"),
+    ]
+    for title, image, caption, action, done in steps:
+        st.divider()
+        st.markdown("### " + title)
+        words, picture = st.columns([1.3, 1], gap="large")
+        with words:
+            st.write(action)
+            st.info(done)
+        with picture:
+            show_guide_image(image, caption)
+    st.divider()
+    st.markdown("### 常见问题")
+    with st.expander("上传后一直转圈怎么办？"):
+        st.write("先区分转圈位置：文件名旁转圈通常仍在上传；‘正在读取’表示正在解码。确认网络正常、文件已从手机云盘下载到本机，并尝试一组较小的 DNG。若仍失败，记录文件大小与页面提示，再查看云端运行日志。")
+    with st.expander("提示两张图片尺寸不同怎么办？"):
+        st.write("使用相同拍摄分辨率的两张原文件，避免只裁剪或旋转其中一张。不要为了通过尺寸检查而随意拉伸图片，以免分析坐标错位。")
+    with st.expander("手机拖动图片时无法滚动页面怎么办？"):
+        st.write("点击‘锁定/滚动’，再上下滑动页面。需要调整图像时切回‘移动/缩放’，重新选区时点击‘重新框选区域’。")
+    with st.expander("为什么选区只在第一张图上画？"):
+        st.write("网页会将同一组原始像素坐标应用到第二张图，用于左右互换校正。必须核对第二张图的框仍在液体内部；若容器位置明显改变，应重新拍摄匹配图像。")
+    st.caption("阅读完成后，点击顶部‘开始检测’标签即可操作。切换标签不会清除当前检测。")
+
+
+def main() -> None:
+    st.set_page_config(page_title="疾病标记物荧光定量分析", layout="wide")
+    st.html("""<style>
+    [data-testid="stAppViewContainer"] .block-container {max-width:1120px; padding-top:2rem;}
+    [data-testid="stAppViewContainer"] h1 {font-size:2.15rem; line-height:1.3;}
+    [data-testid="stAppViewContainer"] h2 {font-size:1.45rem; line-height:1.4;}
+    [data-testid="stTabs"] [role="tab"] {font-size:1.05rem; min-height:3rem;}
+    @media(max-width:640px){
+      [data-testid="stAppViewContainer"] .block-container {padding:4.5rem 1rem 3rem;}
+      [data-testid="stAppViewContainer"] h1 {font-size:1.65rem;}
+      [data-testid="stAppViewContainer"] h2 {font-size:1.3rem;}
+      [data-testid="stAppViewContainer"] h3 {font-size:1.12rem;}
+    }
+    </style>""")
+    st.title("疾病标记物荧光定量分析")
+    st.caption("通过空白与样品图像的左右互换校正，预测疾病标记物浓度。模型定量范围：2–12 μM。")
+    detection, guide = st.tabs(["开始检测", "使用说明"])
+    with guide:
+        render_usage_guide()
+    with detection:
+        render_detection()
+
+
+def render_detection() -> None:
+    st.caption("操作顺序：上传两张图像，确认左右区域，查看预测结果。首次使用可先阅读‘使用说明’。")
     mode = st.radio(
         "输入方式",
-        ["上传 DNG 图像", "手机拍照"],
+        ["上传 DNG 原始图像", "网页直接拍照"],
         horizontal=True,
         key="input_mode",
     )
 
     st.subheader("第 1 步：拍摄或上传两张图像")
-    if mode == "上传 DNG 图像":
+    if mode == "上传 DNG 原始图像":
         upload_left, upload_right = st.columns(2)
         with upload_left:
             left_file = st.file_uploader(
@@ -1254,19 +1333,21 @@ def main() -> None:
         )
         return
 
-    preview_left, preview_right = st.columns(2)
-    with preview_left:
-        st.image(
-            cv2.cvtColor(img_left, cv2.COLOR_BGR2RGB),
-            caption=f"第一张：左侧空白 | 右侧样品（{left_name}）",
-            use_container_width=True,
-        )
-    with preview_right:
-        st.image(
-            cv2.cvtColor(img_right, cv2.COLOR_BGR2RGB),
-            caption=f"第二张：左侧样品 | 右侧空白（{right_name}）",
-            use_container_width=True,
-        )
+    st.success("两张图像已读取，可以开始选择分析区域。")
+    with st.expander("查看已上传的两张原图", expanded=False):
+        preview_left, preview_right = st.columns(2)
+        with preview_left:
+            st.image(
+                cv2.cvtColor(img_left, cv2.COLOR_BGR2RGB),
+                caption=f"第一张：左侧空白 | 右侧样品（{left_name}）",
+                use_container_width=True,
+            )
+        with preview_right:
+            st.image(
+                cv2.cvtColor(img_right, cv2.COLOR_BGR2RGB),
+                caption=f"第二张：左侧样品 | 右侧空白（{right_name}）",
+                use_container_width=True,
+            )
 
     st.subheader("第 2 步：在第一张图像上选择分析区域")
     st.write(
@@ -1338,33 +1419,25 @@ def main() -> None:
         st.error("分析区域超出图像边界，请点击“重新框选区域”。")
         return
 
-    st.markdown("#### 分析区域确认预览")
-    st.image(
-        roi_preview(img_left, roi_left, roi_right),
-        caption=(
-            f"第一张图：青色 左侧分析区域={roi_left}；黄色 右侧分析区域={roi_right}。"
-            "相同原图坐标将应用到第二张图。"
-        ),
-        use_container_width=True,
-    )
-    crop_left, crop_right = st.columns(2)
-    with crop_left:
-        x, y, w, h = roi_left
-        st.image(
-            cv2.cvtColor(img_left[y:y + h, x:x + w], cv2.COLOR_BGR2RGB),
-            caption=f"左侧分析区域预览： {roi_left}",
-            use_container_width=True,
-        )
-    with crop_right:
-        x, y, w, h = roi_right
-        st.image(
-            cv2.cvtColor(img_left[y:y + h, x:x + w], cv2.COLOR_BGR2RGB),
-            caption=f"右侧分析区域预览： {roi_right}",
-            use_container_width=True,
-        )
+    with st.expander("核对两张图像中的分析区域", expanded=True):
+        st.write("请确认两张图中的框都位于液体内部。第二张图左侧为样品、右侧为空白。")
+        pair_left, pair_right = st.columns(2)
+        with pair_left:
+            st.image(roi_preview(img_left, roi_left, roi_right),
+                     caption="第一张：左空白、右样品", width=320)
+        with pair_right:
+            st.image(roi_preview(img_right, roi_left, roi_right),
+                     caption="第二张：左样品、右空白（使用相同坐标）", width=320)
+    with st.expander("查看裁剪区域与原图坐标", expanded=False):
+        crop_left, crop_right = st.columns(2)
+        for column, roi, label in [(crop_left, roi_left, "左侧"), (crop_right, roi_right, "右侧")]:
+            with column:
+                x, y, w, h = roi
+                st.image(cv2.cvtColor(img_left[y:y+h, x:x+w], cv2.COLOR_BGR2RGB),
+                         caption=f"{label}分析区域：{roi}", width=160)
 
-    st.subheader("第 3 步：预测银离子浓度")
-    if st.button("预测银离子浓度", type="primary", use_container_width=True):
+    st.subheader("第 3 步：预测疾病标记物浓度")
+    if st.button("预测疾病标记物浓度", type="primary", use_container_width=True):
         st.session_state.prediction_result = predict_pair(
             img_left,
             img_right,
@@ -1375,12 +1448,12 @@ def main() -> None:
 
     result = st.session_state.get("prediction_result")
     if result is None:
-        st.info("两个分析区域已锁定，请点击“预测银离子浓度”继续。")
+        st.info("两个分析区域已锁定，请点击“预测疾病标记物浓度”继续。")
         return
 
     result_roi_left, result_roi_right = st.session_state["prediction_rois"]
     roi_left, roi_right = result_roi_left, result_roi_right
-    st.metric("银离子预测浓度", f"{result['predicted_Ag_uM']:.2f} μM")
+    st.metric("疾病标记物预测浓度", f"{result['predicted_Ag_uM']:.2f} μM")
     if result["range_status"] == "IN_RANGE":
         st.success("处于模型定量范围内（2–12 μM）")
     elif result["range_status"] == "OUT_OF_MODEL_RANGE":
@@ -1393,7 +1466,7 @@ def main() -> None:
             f"模型：浓度 = {MODEL_A} × 校正亮度比值 + {MODEL_B} "
             f"（模型定量范围： {VALID_MIN:g}–{VALID_MAX:g} μM）"
         )
-        if mode == "上传 DNG 图像":
+        if mode == "上传 DNG 原始图像":
             st.caption(
                 "DNG 处理：使用相机白平衡，"
                 "关闭自动亮度，输出位深为 8 位"
@@ -1455,7 +1528,7 @@ def main() -> None:
     st.download_button(
         "下载结果表格（CSV）",
         data=csv_buffer.getvalue().encode("utf-8-sig"),
-        file_name="银离子预测结果.csv",
+        file_name="疾病标记物预测结果.csv",
         mime="text/csv",
     )
 
