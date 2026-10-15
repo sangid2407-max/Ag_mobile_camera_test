@@ -1170,20 +1170,12 @@ def chinese_export_row(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def main() -> None:
-    st.set_page_config(page_title="疾病标记物荧光定量分析", layout="wide")
-    st.html("""<style>
-    [data-testid="stAppViewContainer"] .block-container {max-width:1120px; padding-top:2rem;}
-    [data-testid="stAppViewContainer"] h1 {font-size:2.15rem; line-height:1.3;}
-    [data-testid="stAppViewContainer"] h2 {font-size:1.45rem; line-height:1.4;}
-    @media(max-width:640px){
-      [data-testid="stAppViewContainer"] .block-container {padding:4.5rem 1rem 3rem;}
-      [data-testid="stAppViewContainer"] h1 {font-size:1.65rem;}
-      [data-testid="stAppViewContainer"] h2 {font-size:1.3rem;}
-      [data-testid="stAppViewContainer"] h3 {font-size:1.12rem;}
-    }
-    </style>""")
-    st.title("疾病标记物荧光定量分析")
-    st.caption("通过空白与样品图像的左右互换校正，预测疾病标记物浓度。模型定量范围：2–12 μM。")
+    st.set_page_config(
+        page_title="智能手机荧光图像疾病标记物定量分析",
+        layout="wide",
+    )
+    st.title("智能手机荧光图像疾病标记物定量分析")
+    st.caption("模型定量范围：2–12 μM")
     render_detection()
 
 
